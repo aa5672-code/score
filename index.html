@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d6a63">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="整潔秩序評分">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;-webkit-text-size-adjust:100%}[hidden]{display:none!important}</style><title>整潔秩序評分系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: single-column touch app (iPad first, phone OK) — home → role → setup → one card per class (plan C) → summary */
+:root{
+  --bg:#eef2f1; --surface:#ffffff; --ink:#1a2928; --muted:#5a6a68; --line:#d5dedc;
+  --accent:#1d6a63; --accent-ink:#ffffff; --accent-soft:#d8eae7; --gold:#a86f07; --gold-soft:#f7ead0;
+  --s1:#c4433a; --s2:#c98316; --s3:#22825a; --s1-soft:#f8e1de; --s2-soft:#f8ecd6; --s3-soft:#dcefe5;
+  --font-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --font-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111816; --surface:#1a2321; --ink:#e4ecea; --muted:#97a7a4; --line:#2b3835;
+  --accent:#58bdb0; --accent-ink:#0d1d1b; --accent-soft:#1d3532; --gold:#e3aa3d; --gold-soft:#3a2f17;
+  --s1:#e0645a; --s2:#e3a23f; --s3:#3fad7c; --s1-soft:#3b201e; --s2-soft:#3a2d17; --s3-soft:#173326; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --surface:#1a2321; --ink:#e4ecea; --muted:#97a7a4; --line:#2b3835;
+  --accent:#58bdb0; --accent-ink:#0d1d1b; --accent-soft:#1d3532; --gold:#e3aa3d; --gold-soft:#3a2f17;
+  --s1:#e0645a; --s2:#e3a23f; --s3:#3fad7c; --s1-soft:#3b201e; --s2-soft:#3a2d17; --s3-soft:#173326; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5}
+#app{max-width:860px;margin:0 auto;padding:16px 16px 40px;display:flex;flex-direction:column;gap:16px}
+button,input,select{font-family:inherit;color:inherit;font-size:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{margin:0;text-wrap:balance}
+
+.top{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.top h1{font-size:1.35rem;font-weight:900}
+.crumb{font-size:.85rem;color:var(--muted)}
+.back{border:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-weight:700}
+.offline{font-size:.75rem;padding:3px 10px;border-radius:99px;background:var(--gold-soft);color:var(--gold);font-weight:700;white-space:nowrap}
+
+/* tiles */
+.tiles{display:grid;gap:12px}
+.tile{display:grid;grid-template-columns:minmax(150px,auto) 1fr auto;gap:16px;align-items:center;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}
+.tile .ic{min-height:64px;padding:8px 18px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-weight:900;font-size:1.35rem;letter-spacing:.06em;white-space:nowrap}
+.tile .desc{font-size:.92rem;color:var(--muted)}
+@media (max-width:520px){.tile{grid-template-columns:1fr auto}.tile .desc{grid-column:1/2}.tile .go{grid-row:1/3;grid-column:2}.tile .ic{justify-content:flex-start}}
+.tile .go{font-size:1.4rem;color:var(--muted)}
+.tile.off{opacity:.6}
+.tile.off .ic{background:var(--bg);color:var(--muted)}
+.pill{display:inline-block;font-size:.72rem;font-weight:700;padding:1px 8px;border-radius:99px;background:var(--bg);color:var(--muted);margin-left:6px;vertical-align:middle}
+
+/* form */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:16px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.field .lb{font-weight:700;font-size:.92rem}
+.field small{color:var(--muted);font-size:.8rem}
+.field input{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;min-height:50px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper button{width:50px;height:50px;border-radius:12px;border:2px solid var(--line);background:var(--surface);font-size:1.4rem;font-weight:700}
+.stepper output{font-family:var(--font-num);font-size:1.5rem;font-weight:600;min-width:3ch;text-align:center}
+.seg{display:flex;background:var(--bg);border-radius:12px;padding:4px;gap:4px;flex-wrap:wrap}
+.seg button{flex:1;border:0;background:transparent;padding:11px 14px;border-radius:9px;font-weight:700;min-width:64px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button .n{font-family:var(--font-num);font-size:.75rem;opacity:.8;margin-left:4px}
+.btn{border:0;background:var(--accent);color:var(--accent-ink);font-weight:700;padding:14px 22px;border-radius:14px;font-size:1.05rem}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+
+.rules{background:var(--gold-soft);border-radius:var(--r);padding:12px 14px;font-size:.86rem}
+.rules summary{font-weight:700;cursor:pointer;color:var(--gold)}
+.rules ol{margin:8px 0 0;padding-left:1.3em}
+
+/* scoring */
+.info{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:.86rem;color:var(--muted)}
+.info b{color:var(--ink)}
+.chips{display:flex;flex-direction:column;gap:6px}
+.grade{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{border:2px solid var(--line);background:var(--surface);border-radius:99px;padding:5px 12px;font-family:var(--font-num);font-weight:600;font-size:.95rem;display:flex;align-items:center;gap:6px}
+.chip i{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.chip.part i{background:var(--s2)}
+.chip.ok i{background:var(--s3)}
+.chip[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.legend{font-size:.75rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:20px}
+.cardhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.cardhead .cls{font-family:var(--font-num);font-size:2.8rem;font-weight:600;line-height:1}
+.cardhead .slot{font-weight:900;font-size:1.1rem;color:var(--accent)}
+.crit{display:flex;flex-direction:column;gap:8px}
+.crit h3{font-size:1.02rem;display:flex;gap:8px;align-items:center}
+.crit h3 .code{font-family:var(--font-num);background:var(--accent);color:var(--accent-ink);border-radius:6px;padding:0 7px;font-size:.85rem}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.sb{border:2px solid var(--line);background:var(--surface);border-radius:14px;padding:10px 8px;min-height:92px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;text-align:center}
+.sb .v{font-family:var(--font-num);font-size:1.6rem;font-weight:600;line-height:1}
+.sb .lv{font-weight:700;font-size:.85rem}
+.sb .d{font-size:.78rem;color:var(--muted);line-height:1.35}
+.sb.l3 .lv{color:var(--s3)}.sb.l2 .lv{color:var(--s2)}.sb.l1 .lv{color:var(--s1)}
+.sb.on{border-color:transparent;color:#fff}
+.sb.on .lv,.sb.on .d{color:#fff}
+.sb.on.l3{background:var(--s3)}.sb.on.l2{background:var(--s2)}.sb.on.l1{background:var(--s1)}
+
+.pc{display:flex;flex-direction:column;gap:10px;border-top:1px dashed var(--line);padding-top:16px}
+.pc h3{font-size:1rem}
+.pc .hint{font-size:.8rem;color:var(--muted);font-weight:400;margin-left:6px}
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tag{border:2px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;font-size:.9rem;text-align:left}
+.tag.pro[aria-pressed="true"]{background:var(--s3-soft);border-color:var(--s3)}
+.tag.con[aria-pressed="true"]{background:var(--s1-soft);border-color:var(--s1)}
+.tag.toggle[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.other{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;min-height:46px;width:100%}
+.warn{font-size:.85rem;color:var(--s1);font-weight:700;display:flex;flex-direction:column;gap:2px}
+
+.nav{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.nav .btn{flex:1;min-width:130px}
+
+/* summary */
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.9rem}
+th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:center;vertical-align:top}
+tr:last-child td{border-bottom:0}
+thead th{background:var(--bg);color:var(--muted);font-size:.8rem;white-space:nowrap}
+td.cl{font-family:var(--font-num);font-weight:600;text-align:left}
+td.txt{text-align:left;min-width:180px;font-size:.82rem}
+.sc{display:inline-block;min-width:28px;border-radius:7px;color:#fff;font-family:var(--font-num);font-weight:600}
+.sc.l3{background:var(--s3)}.sc.l2{background:var(--s2)}.sc.l1{background:var(--s1)}
+.miss{color:var(--s1);font-weight:700}
+.fine{font-size:.8rem;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom, 0px));background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:14px;font-weight:700;z-index:10;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:calc(100% - 32px);text-align:center}
+.fixed{font-weight:900;font-size:1.15rem;padding:12px 14px;background:var(--bg);border-radius:12px}
+.sb.short{min-height:60px;justify-content:center}
+.crit h3 .hint{font-size:.8rem;color:var(--muted);font-weight:400}
+.total{margin-left:auto;font-size:.9rem;background:var(--accent-soft);color:var(--accent);padding:4px 12px;border-radius:99px;font-weight:700;white-space:nowrap}
+.total b{font-family:var(--font-num);font-size:1.15rem}
+.citems{display:flex;flex-direction:column;gap:8px}
+.citem{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center}
+.citem .cn{font-weight:700}
+@media (max-width:520px){.citem{grid-template-columns:1fr;gap:4px}.sb.short{min-height:56px}}
+.today{border:0;background:var(--accent-soft);color:var(--accent);font-weight:700;border-radius:10px;padding:6px 12px;align-self:flex-start}
+@media (max-width:520px){
+  .row2{grid-template-columns:1fr}
+  .sb{min-height:84px;padding:8px 4px}
+  .sb .d{font-size:.72rem}
+  .cardhead .cls{font-size:2.3rem}
+}
+</style>
+
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+/* ===== 表格內容（依 115-1 三份評分表，原文保留） ===== */
+const GRADES={7:['701','702','703','704','705','706'],8:['801','802','803','804','805','806','807'],9:['901','902','903','904','905','906']};
+const ALL=[...GRADES[7],...GRADES[8],...GRADES[9]];
+const LV={3:'優良',2:'尚可',1:'待加強'};
+const CRIT={
+  A:{n:'保持安靜',3:'安靜自習',2:'幹部勸導仍有講話',1:'幹部無勸導有人講話'},
+  B:{n:'確實回座',3:'確實回座位',2:'幹部勸導仍無故走動',1:'幹部無勸導有人走動'},
+  C:{n:'確實自習',3:'自習、晨讀或測驗',2:'1-2位左顧右盼、趴下或睡覺',1:'3位以上左顧右盼、趴下或睡覺'},
+  D:{n:'保持安靜',3:'安靜自習',2:'幹部勸導仍有講話',1:'幹部無勸導有人講話'},
+  E:{n:'確實回座及點名',3:'確實回座位',2:'幹部勸導，12:30以後無故走動',1:'幹部無勸導有人走動'},
+  F:{n:'確實午休或自習',3:'自習、晨讀或測驗',2:'1-2位左顧右盼、趴下或睡覺',1:'3位以上左顧右盼、趴下或睡覺'},
+  G:{n:'行進整隊',3:'迅速至指定地點',2:'太晚進場、講話聊天',1:'幹部未主動整隊、講話聊天'},
+  H:{n:'集合儀態',3:'站姿坐姿儀態端正',2:'1-2位站姿坐姿儀態不佳',1:'3位以上站姿坐姿儀態不佳'},
+  I:{n:'集合秩序',3:'安靜聽講',2:'1-2位左顧右盼、講話聊天',1:'3位以上左顧右盼、講話聊天'}
+};
+/* 小義工表格的 F 欄原文是「趴下等」 */
+const CRIT_VOL={F:{...CRIT.F,2:'1-2位左顧右盼、趴下等',1:'3位以上左顧右盼、趴下等'}};
+const SLOTS={am:{n:'早自習',c:['A','B','C']},noon:{n:'午休',c:['D','E','F']},assy:{n:'朝會',c:['G','H','I']}};
+const NOTES=['九年級全學期及七、八年級月考前一週經導師同意可以於午休時間在教室自習，不予扣分，但須保持安靜勿影響他人休息。','分數評分方式為1-3分，優缺點務必填寫1個。','早上7:35後開始評，中午12:30後開始評，不可兩人一起評。'];
+const ROLES={
+  chief:{n:'生教組長',fixedName:'陳曼墁',form:'生教組長秩序成績評分表',slots:['am','assy'],pc:false,cls:()=>ALL,desc:'早自習、朝會（有朝會時）'},
+  vol:{n:'小義工',form:'秩序（小義工）秩序成績評分表',slots:['noon'],pc:true,cls:()=>ALL,desc:'午休｜要寫優缺點',crit:CRIT_VOL},
+  monitor:{n:'風紀股長',form:'風紀股長秩序成績評分表',slots:['am','noon','assy'],pc:true,grade:true,gradeHint:'風紀股長評其他年級的班級',cls:g=>GRADES[g]||[],desc:'早自習、午休、朝會（有朝會時）｜評其他年級｜要寫優缺點',notes:NOTES},
+  duty:{n:'值週導護教師',form:'值週導護教師整潔秩序成績評分表',slots:['dam','dnoon'],weeklyName:true,grade:true,back:'home',cls:g=>GRADES[g]||[],desc:'值週教師每日評分',notes:null}
+};
+/* 值週導護教師：秩序 1-3 分（早自習、午休）；整潔只評午休，五項各 0-2 分，自動加總（滿分 10） */
+const DUTY_CLEAN=[['hall','走廊'],['win','窗戶'],['cart','餐車'],['floor','教室地面'],['ceil','天花板']];
+const CLV={0:'待改進',1:'尚可',2:'良好'};
+const DSLOTS={dam:{n:'早自習',need:['o']},dnoon:{n:'午休',need:['o',...DUTY_CLEAN.map(x=>x[0])]}};
+const DUTY_NOTES=['敬請值週導護教師記得【簽名】及【盡量註記優缺點】。','秩序評比注意事項：【早自習】及【午休】皆須評分，請依各班實際表現給予【1-3分】評分。','整潔評比注意事項：只評【午休】，依走廊、窗戶、餐車、教室地面、天花板各項的實際表現，各給予【0-2分】，系統自動加總（滿分10分）。'];
+ROLES.duty.notes=DUTY_NOTES;
+const TERM_START=new Date(2026,7,31); /* 115-1 開學週的星期一，可再調整 */
+/* 預設上傳網址（測試階段：主任 aa5672 的試算表）。之後換成生教組長、衛生組長的網址 */
+const DEFAULT_URL='https://script.google.com/macros/s/AKfycbwMOzb-ju_xpjdS-HAzH_nYIQ6AscVVE83Sg1qldx-zySJyidj1H7sHO_Dtm1y5E5Af/exec';
+
+/* ===== 狀態 ===== */
+const today=new Date();const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const weekOf=s=>{const d=new Date(s+'T00:00');return Math.max(1,Math.floor((d-TERM_START)/864e5/7)+1)};
+const WD='日一二三四五六';
+let st={screen:'home',role:null,date:iso(today),week:weekOf(iso(today)),name:'',grade:7,slot:null,ci:0,assy:false};
+let DB={};
+let P={names:{},duty:{}};
+try{const p=JSON.parse(localStorage.getItem('order_prefs')||'{}');P.names=p.names||{};P.duty=p.duty||{};P.urlOrder=p.urlOrder||DEFAULT_URL;P.urlClean=p.urlClean||'';P.lastUp=p.lastUp||'';if(p.name){P.names.vol??=p.name;P.names.monitor??=p.name}if(p.grade)st.grade=p.grade;DB=JSON.parse(localStorage.getItem('order_db')||'{}')}catch(e){}
+const save=()=>{try{localStorage.setItem('order_db',JSON.stringify(DB));localStorage.setItem('order_prefs',JSON.stringify({names:P.names,duty:P.duty,grade:st.grade,urlOrder:P.urlOrder,urlClean:P.urlClean,lastUp:P.lastUp}))}catch(e){}};
+/* 評分人：生教組長固定；值週教師每週換人（換週就清空）；其他身分輸入一次會記住 */
+const nameOf=()=>{const r=ROLES[st.role];if(!r)return'';if(r.fixedName)return r.fixedName;if(r.weeklyName)return P.duty.week===st.week?(P.duty.name||''):'';return P.names[st.role]||''};
+const setName=v=>{const r=R();if(r.weeklyName)P.duty={name:v,week:st.week};else P.names[st.role]=v;save()};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const R=()=>ROLES[st.role];
+const crit=k=>(R().crit&&R().crit[k])||CRIT[k];
+const classes=()=>R().cls(st.grade);
+const slotsNow=()=>R().slots.filter(s=>s!=='assy'||st.assy);
+const sheetKey=()=>`${st.role}|${st.date}|${R().grade?st.grade:''}`;
+const rec=(cl,slot)=>{const k=sheetKey();DB[k]??={};DB[k].__m={name:nameOf(),week:st.week};DB[k][cl]??={};return DB[k][cl][slot]??={s:{},pro:[],con:[],other:'',self:false}};
+const peek=(cl,slot)=>DB[sheetKey()]?.[cl]?.[slot];
+function problems(cl,slot){
+  const r=peek(cl,slot);const out=[];const cs=SLOTS[slot].c;
+  if(!r)return['尚未評分'];
+  const n=cs.filter(k=>r.s[k]).length;
+  if(n<cs.length)out.push(`還有 ${cs.length-n} 項沒評分`);
+  if(R().pc){
+    if(!r.pro.length&&!r.con.length&&!r.other.trim())out.push('優缺點至少要選 1 個');
+    if(cs.some(k=>r.s[k]&&r.s[k]<3)&&!r.con.length&&!r.other.trim())out.push('有扣分就要寫缺點');
+  }
+  return out;
+}
+const status=(cl,slot)=>{const r=peek(cl,slot);if(!r||!Object.keys(r.s).length)return'';return problems(cl,slot).length?'part':'ok'};
+
+/* ===== 畫面 ===== */
+const hdr=(title,crumb,back)=>`<div class="top"><div style="display:flex;gap:10px;align-items:center">${back?`<button class="back" data-act="go" data-v="${back}" aria-label="返回">← 返回</button>`:''}<div><h1>${title}</h1>${crumb?`<div class="crumb">${crumb}</div>`:''}</div></div><span class="offline">離線可用・存在本機</span></div>`;
+const tile=(act,v,name,d,off)=>`<button class="tile${off?' off':''}" data-act="${act}" data-v="${v}"><span class="ic">${name}</span><span class="desc">${d}${off?'<span class="pill">待提供表格</span>':''}</span><span class="go">›</span></button>`;
+
+function home(){
+  return hdr('整潔秩序評分','請選擇要評分的項目')+`<div class="tiles">
+  ${tile('go','clean','整潔評分','小義工（早上）／衛生股長（午休）')}
+  ${tile('go','roles','秩序評分','生教組長／小義工／風紀股長')}
+  ${tile('role','duty','值週教師評分','值週教師每日評分｜每週一換人')}
+  ${tile('go','upload','上傳資料',(()=>{const n=pendingRows().length;return n?`<b style="color:var(--s1)">還有 ${n} 筆沒上傳</b>，回到學校連上網路後按這裡`:'資料都已上傳'+(P.lastUp?`（上次 ${P.lastUp}）`:'')})())}</div>`;
+}
+
+/* ===== 上傳 ===== */
+const critOf=(role,k)=>(ROLES[role].crit&&ROLES[role].crit[k])||CRIT[k];
+function codesOf(role,slot,r){
+  if(!SLOTS[slot])return{p:'',c:''};
+  const p=new Set(),c=new Set();
+  SLOTS[slot].c.forEach(k=>{const t=critOf(role,k);
+    if(r.pro?.includes(t[3]))p.add(k);
+    if(r.con?.includes(t[2])||r.con?.includes(t[1])||(r.s[k]&&r.s[k]<3))c.add(k)});
+  return{p:[...p].filter(x=>!c.has(x)).join(''),c:[...c].sort().join('')};
+}
+function pendingRows(){
+  const out=[];
+  for(const k in DB){
+    const [role,date,grade]=k.split('|');if(!ROLES[role])continue;const m=DB[k].__m||{};
+    for(const cl in DB[k]){if(cl==='__m')continue;
+      for(const slot in DB[k][cl]){const r=DB[k][cl][slot];
+        if(!Object.keys(r.s).length&&!r.note&&!r.other)continue;
+        if((r.u||1)===r.up)continue;
+        const cd=codesOf(role,slot,r);
+        out.push({r,row:{key:`${k}|${cl}|${slot}`,cat:role==='duty'?'秩序+整潔':'秩序',role,rater:m.name||'',date,week:m.week||weekOf(date),wd:new Date(date+'T00:00').getDay(),
+          cls:cl,slot,slotName:(SLOTS[slot]||DSLOTS[slot]||{}).n||slot,s:r.s,total:role==='duty'&&slot==='dnoon'?cleanSum(r):undefined,
+          pros:(r.pro||[]).join('、'),cons:[...(r.con||[]),r.other].filter(Boolean).join('、'),proCodes:cd.p,conCodes:cd.c,note:r.note||'',self:!!r.self}});
+      }}
+  }
+  return out;
+}
+let upState={busy:false,msg:''};
+async function doUpload(){
+  const items=pendingRows();
+  if(!items.length){upState.msg='沒有需要上傳的資料。';render();return}
+  if(!P.urlOrder&&!P.urlClean){upState.msg='請先在下方填好上傳網址。';render();return}
+  if(navigator.onLine===false){upState.msg='這台載具目前沒有連上網路，請連上學校 Wi-Fi 後再按一次。';render();return}
+  const targets={};const add=(u,it)=>{if(u)(targets[u]??=[]).push(it)};
+  items.forEach(it=>{add(P.urlOrder||P.urlClean,it);if(it.row.role==='duty'&&P.urlClean&&P.urlClean!==P.urlOrder)add(P.urlClean,it)});
+  upState={busy:true,msg:`正在上傳 ${items.length} 筆…`};render();
+  const failed=new Set();let err='';
+  for(const [u,list] of Object.entries(targets)){
+    try{
+      const res=await fetch(u,{method:'POST',body:JSON.stringify({rows:list.map(x=>x.row)})});
+      const j=await res.json();if(!j.ok)throw new Error(j.error||'試算表回應錯誤');
+    }catch(e){err=e.message||String(e);list.forEach(x=>failed.add(x))}
+  }
+  let ok=0;items.forEach(it=>{if(!failed.has(it)){it.r.up=it.r.u||1;it.r.u=it.r.up;ok++}});
+  if(ok){const d=new Date();P.lastUp=`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
+  save();
+  upState={busy:false,msg:failed.size?`有 ${failed.size} 筆上傳失敗（${err}）。資料仍保存在這台載具，請確認網路與上傳網址後再試一次。`:`上傳完成，共 ${ok} 筆。`};
+  render();
+}
+function uploadScreen(){
+  const items=pendingRows();const byRole={};items.forEach(it=>{const n=ROLES[it.row.role].n;byRole[n]=(byRole[n]||0)+1});
+  return hdr('上傳資料','回到學校、連上網路後上傳','home')+`<div class="panel">
+    <div class="field"><span class="lb">還沒上傳的資料</span>
+      <div class="fixed">${items.length?`${items.length} 筆<span class="fine" style="font-weight:400;margin-left:8px">${Object.entries(byRole).map(([k,v])=>`${k} ${v}`).join('、')}</span>`:'沒有，資料都已上傳'}</div>
+      <small>${P.lastUp?`上次上傳：${P.lastUp}`:'這台載具還沒上傳過'}${navigator.onLine===false?'・<b style="color:var(--s1)">目前沒有網路</b>':''}</small></div>
+    <button class="btn" data-act="upload" ${upState.busy?'disabled':''}>${upState.busy?'上傳中…':'上傳'}</button>
+    ${upState.msg?`<div class="rules" role="status">${esc(upState.msg)}</div>`:''}
+  </div>
+  <details class="panel" ${P.urlOrder?'':'open'}><summary style="font-weight:700;cursor:pointer">上傳網址設定（只要設定一次）</summary>
+    <div class="field"><label for="f-uo">秩序資料上傳網址</label><input id="f-uo" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(P.urlOrder)}" data-in="urlOrder" autocomplete="off"><small>生教組長的試算表（測試階段填主任的試算表）</small></div>
+    <div class="field"><label for="f-uc">整潔資料上傳網址</label><input id="f-uc" type="url" inputmode="url" placeholder="測試階段可以留空，或填和上面一樣的網址" value="${esc(P.urlClean)}" data-in="urlClean" autocomplete="off"><small>衛生組長的試算表。值週導護教師的整潔分數會送到這裡</small></div>
+  </details>`;
+}
+function placeholder(t,back,crumb){return hdr(t,crumb||'',back||'home')+`<div class="panel"><p style="margin:0">這個項目的介面還沒做。請提供目前使用的${t}表格，就會依照表格內容做成點選式的介面。</p></div>`}
+function cleanRoles(){
+  return hdr('整潔評分','請選擇您的身分','home')+`<div class="tiles">
+  ${tile('go','cleanVol','小義工（早上）','外掃評分／內掃評分')}
+  ${tile('go','cleanMon','衛生股長（午休）','午休整潔評分',true)}</div>`;
+}
+function cleanVol(){
+  return hdr('小義工（早上）','整潔評分・請選擇評分項目','clean')+`<div class="tiles">
+  ${tile('go','cleanOut','外掃評分','外掃區整潔',true)}
+  ${tile('go','cleanIn','內掃評分','教室內整潔',true)}</div>`;
+}
+function roles(){
+  return hdr('秩序評分','請選擇您的身分','home')+`<div class="tiles">
+  ${tile('role','chief','生教組長',ROLES.chief.desc)}
+  ${tile('role','vol','小義工',ROLES.vol.desc)}
+  ${tile('role','monitor','風紀股長',ROLES.monitor.desc)}</div>`;
+}
+function setup(){
+  const r=R();const d=new Date(st.date+'T00:00');
+  return hdr(r.n,r.form,r.back||'roles')+`<div class="panel">
+  <div class="row2">
+    <div class="field"><label for="f-date">日期</label><input id="f-date" type="date" value="${st.date}" data-in="date"><small>星期${WD[d.getDay()]}</small>${st.date!==iso(new Date())?`<button class="today" data-act="today">改回今天</button>`:''}</div>
+    <div class="field"><span class="lb">第幾週</span><div class="stepper"><button data-act="wk" data-v="-1" aria-label="減一週">−</button><output id="f-week">${st.week}</output><button data-act="wk" data-v="1" aria-label="加一週">＋</button></div><small>依日期自動推算，可手動調整</small></div>
+  </div>
+  ${nameField(r)}
+  ${r.grade?`<div class="field"><span class="lb">要評分的年級</span>${r.gradeHint?`<small>${r.gradeHint}</small>`:''}<div class="seg" role="group" aria-label="年級">${[7,8,9].map(g=>`<button data-act="grade" data-v="${g}" aria-pressed="${st.grade===g}">${g} 年級<span class="n">${GRADES[g].length}班</span></button>`).join('')}</div></div>`:''}
+  ${r.slots.includes('assy')?`<div class="field"><span class="lb">今天有朝會嗎？</span><div class="seg" role="group" aria-label="朝會"><button data-act="assy" data-v="0" aria-pressed="${!st.assy}">沒有朝會</button><button data-act="assy" data-v="1" aria-pressed="${st.assy}">有朝會</button></div><small>有朝會時才會出現朝會評分</small></div>`:''}
+  ${r.notes?notesBox(true,r.notes):''}
+  <button class="btn" data-act="start" id="startBtn" ${nameOf().trim()?'':'disabled'}>開始評分</button>
+  </div>`;
+}
+function nameField(r){
+  if(r.fixedName)return`<div class="field"><span class="lb">評分人</span><div class="fixed">${r.fixedName}</div><small>生教組長固定，不用輸入</small></div>`;
+  if(r.weeklyName){const has=!!nameOf();return`<div class="field"><label for="f-name">本週值週教師</label><input id="f-name" type="text" placeholder="請輸入本週值週教師姓名" value="${esc(nameOf())}" data-in="name" autocomplete="off"><small>${has?`第 ${st.week} 週已登記，下週一會自動清空，請新的值週教師重新輸入`:`第 ${st.week} 週還沒登記值週教師，請輸入姓名`}</small></div>`}
+  return`<div class="field"><label for="f-name">評分人簽名</label><input id="f-name" type="text" placeholder="請輸入姓名（第一次輸入後會記住）" value="${esc(nameOf())}" data-in="name" autocomplete="off"></div>`;
+}
+const notesBox=(open,list)=>`<details class="rules"${open?' open':''}><summary>注意事項</summary><ol>${(list||NOTES).map(n=>`<li>${n}</li>`).join('')}</ol></details>`;
+
+/* ===== 值週導護教師 ===== */
+const cleanSum=r=>DUTY_CLEAN.reduce((a,[k])=>a+(r?.s[k]??0),0);
+const dMissing=(cl,slot)=>{const r=peek(cl,slot);return DSLOTS[slot].need.filter(k=>r?.s[k]==null)};
+const dStatus=(cl,slot)=>{const r=peek(cl,slot);if(!r||!Object.keys(r.s).length)return'';return dMissing(cl,slot).length?'part':'ok'};
+const dName=k=>k==='o'?'秩序':DUTY_CLEAN.find(x=>x[0]===k)[1];
+function dutyScore(){
+  const cls=classes();const cl=cls[st.ci];const slot=st.slot;const rc=peek(cl,slot)||{s:{},note:''};const d=new Date(st.date+'T00:00');
+  const doneN=cls.filter(c=>dStatus(c,slot)==='ok').length;
+  let h=hdr('值週導護教師・評分',ROLES.duty.form,'setup')+
+  `<div class="info"><span>第 <b>${st.week}</b> 週</span><span><b>${d.getMonth()+1}/${d.getDate()}</b> 星期${WD[d.getDay()]}</span><span>值週教師 <b>${esc(nameOf())}</b></span></div>
+  <div class="seg" role="group" aria-label="時間">${Object.keys(DSLOTS).map(s=>`<button data-act="slot" data-v="${s}" aria-pressed="${slot===s}">${DSLOTS[s].n}<span class="n">${cls.filter(c=>dStatus(c,s)==='ok').length}/${cls.length}</span></button>`).join('')}</div>
+  <div class="chips"><div class="grade">${cls.map((c,i)=>`<button class="chip ${dStatus(c,slot)}" data-act="ci" data-v="${i}" aria-current="${c===cl}"><i></i>${c}</button>`).join('')}</div>
+  <div class="legend"><span><i style="background:var(--s3)"></i>完成</span><span><i style="background:var(--s2)"></i>還沒填完</span><span><i style="background:var(--line)"></i>未評</span><span>${DSLOTS[slot].n}已完成 ${doneN}/${cls.length} 班</span></div></div>
+  <div class="card"><div class="cardhead"><span class="cls">${cl}</span><span class="slot">${DSLOTS[slot].n}</span></div>
+  <div class="crit"><h3><span class="code">序</span>秩序<span class="hint">1-3 分</span></h3><div class="three">${[3,2,1].map(v=>`<button class="sb short l${v}${rc.s.o===v?' on':''}" data-act="dset" data-k="o" data-v="${v}" aria-pressed="${rc.s.o===v}"><span class="v">${v}</span><span class="lv">${LV[v]}</span></button>`).join('')}</div></div>`;
+  if(slot==='dnoon'){
+    const n=DUTY_CLEAN.filter(([k])=>rc.s[k]!=null).length;
+    h+=`<div class="crit"><h3><span class="code">潔</span>整潔<span class="hint">每項 0-2 分</span><span class="total">總分 <b>${cleanSum(rc)}</b> / 10</span></h3>
+    <div class="citems">${DUTY_CLEAN.map(([k,name])=>`<div class="citem"><span class="cn">${name}</span><div class="three">${[2,1,0].map(v=>`<button class="sb short l${v+1}${rc.s[k]===v?' on':''}" data-act="dset" data-k="${k}" data-v="${v}" aria-pressed="${rc.s[k]===v}" aria-label="${name} ${v}分"><span class="v">${v}</span><span class="lv">${CLV[v]}</span></button>`).join('')}</div></div>`).join('')}</div>
+    <small class="fine">已評 ${n}/5 項，總分會自動加總</small></div>`;
+  }
+  h+=`<div class="pc"><h3>備註<span class="hint">可註記優缺點（選填）</span></h3><input class="other" id="f-dnote" type="text" placeholder="例如：走廊有紙屑、全班安靜午休" value="${esc(rc.note||'')}" data-in="dnote" autocomplete="off"></div>`;
+  const miss=Object.keys(rc.s).length?dMissing(cl,slot):[];
+  h+=`<div class="warn">${miss.length?`<span>⚠ 還沒評：${miss.map(dName).join('、')}</span>`:''}</div></div>
+  <div class="nav"><button class="btn ghost" data-act="prev" ${st.ci===0?'disabled':''}>← 上一班</button>${st.ci<cls.length-1?`<button class="btn" data-act="next">下一班 →</button>`:`<button class="btn" data-act="go" data-v="dutySummary">檢查總覽 →</button>`}</div>
+  <button class="btn ghost" data-act="go" data-v="dutySummary">檢查總覽</button>
+  ${notesBox(false,DUTY_NOTES)}`;
+  return h;
+}
+function dutySummary(){
+  const cls=classes();
+  let h=hdr('檢查總覽',`值週導護教師・第 ${st.week} 週・${st.date}・${esc(nameOf())}`,'dutyScore');
+  const cell=v=>v==null?'—':`<span class="sc l${v}">${v}</span>`;
+  const cellC=v=>v==null?'—':`<span class="sc l${v+1}">${v}</span>`;
+  Object.keys(DSLOTS).forEach(slot=>{
+    const noon=slot==='dnoon';
+    h+=`<h2 style="font-size:1.1rem">${DSLOTS[slot].n}</h2><div class="tblwrap"><table><thead><tr><th style="text-align:left">班級</th><th>秩序</th>${noon?DUTY_CLEAN.map(([,n])=>`<th>${n}</th>`).join('')+'<th>整潔總分</th>':''}<th style="text-align:left">備註</th><th>狀態</th></tr></thead><tbody>`;
+    cls.forEach((c,i)=>{const r=peek(c,slot);const miss=dMissing(c,slot);
+      h+=`<tr><td class="cl"><button class="chip" data-act="jump" data-v="${i}" data-slot="${slot}">${c}</button></td><td>${cell(r?.s.o)}</td>${noon?DUTY_CLEAN.map(([k])=>`<td>${cellC(r?.s[k])}</td>`).join('')+`<td class="sum"><b>${r?cleanSum(r):'—'}</b></td>`:''}<td class="txt">${esc(r?.note||'')}</td><td>${miss.length?`<span class="miss">還有 ${miss.length} 項</span>`:'✓'}</td></tr>`});
+    h+='</tbody></table></div>';
+  });
+  h+=`<p class="fine">點班級號碼可以回去修改。這份評分會先存在這台載具，之後連上網路時再上傳（上傳功能下一階段製作）。</p>
+  <button class="btn" data-act="go" data-v="home">完成，回首頁</button>`;
+  return h;
+}
+
+function score(){
+  const r=R();const cls=classes();const cl=cls[st.ci];const slot=st.slot;const rc=peek(cl,slot)||{s:{},pro:[],con:[],other:'',self:false};
+  const cs=SLOTS[slot].c;const d=new Date(st.date+'T00:00');
+  const grouped=r.grade?[[st.grade,cls]]:[[7,GRADES[7]],[8,GRADES[8]],[9,GRADES[9]]];
+  const doneN=cls.filter(c=>status(c,slot)==='ok').length;
+  let h=hdr(r.n+'・評分',r.form,'setup')+
+  `<div class="info"><span>第 <b>${st.week}</b> 週</span><span><b>${d.getMonth()+1}/${d.getDate()}</b> 星期${WD[d.getDay()]}</span><span>評分人 <b>${esc(nameOf())}</b></span></div>`;
+  if(slotsNow().length>1)h+=`<div class="seg" role="group" aria-label="時間">${slotsNow().map(s=>`<button data-act="slot" data-v="${s}" aria-pressed="${slot===s}">${SLOTS[s].n}<span class="n">${cls.filter(c=>status(c,s)==='ok').length}/${cls.length}</span></button>`).join('')}</div>`;
+  h+=`<div class="chips">${grouped.map(([g,list])=>`<div class="grade">${list.map(c=>`<button class="chip ${status(c,slot)}" data-act="ci" data-v="${cls.indexOf(c)}" aria-current="${c===cl}"><i></i>${c}</button>`).join('')}</div>`).join('')}
+  <div class="legend"><span><i style="background:var(--s3)"></i>完成</span><span><i style="background:var(--s2)"></i>還沒填完</span><span><i style="background:var(--line)"></i>未評</span><span>${SLOTS[slot].n}已完成 ${doneN}/${cls.length} 班</span></div></div>`;
+
+  h+=`<div class="card"><div class="cardhead"><span class="cls">${cl}</span><span class="slot">${SLOTS[slot].n}</span></div>`;
+  cs.forEach(k=>{const c=crit(k);h+=`<div class="crit"><h3><span class="code">${k}</span>${c.n}</h3><div class="three">${[3,2,1].map(v=>`<button class="sb l${v}${rc.s[k]===v?' on':''}" data-act="set" data-k="${k}" data-v="${v}" aria-pressed="${rc.s[k]===v}"><span class="v">${v}</span><span class="lv">${LV[v]}</span><span class="d">${c[v]}</span></button>`).join('')}</div></div>`});
+  if(r.pc){
+    const pros=cs.map(k=>crit(k)[3]);const cons=[];cs.forEach(k=>{cons.push(crit(k)[2],crit(k)[1])});
+    h+=`<div class="pc">
+      <h3>優點<span class="hint">至少寫一個（可複選）</span></h3>
+      <div class="tags">${[...new Set(pros)].map(t=>`<button class="tag pro" data-act="pro" data-v="${esc(t)}" aria-pressed="${rc.pro.includes(t)}">${t}</button>`).join('')}</div>
+      <h3>缺點<span class="hint">有扣分就要寫；打 2 分或 1 分時會自動勾選</span></h3>
+      <div class="tags">${[...new Set(cons)].map(t=>`<button class="tag con" data-act="con" data-v="${esc(t)}" aria-pressed="${rc.con.includes(t)}">${t}</button>`).join('')}</div>
+      ${slot==='noon'?`<div class="tags"><button class="tag toggle" data-act="self" aria-pressed="${!!rc.self}">經導師同意午休在教室自習（不予扣分）</button></div>`:''}
+      <input class="other" id="f-other" type="text" placeholder="其他補充（選填，例如：座位區有垃圾）" value="${esc(rc.other)}" data-in="other" autocomplete="off">
+    </div>`;
+  }
+  const pb=Object.keys(rc.s).length?problems(cl,slot):[];
+  h+=`<div class="warn" id="warn">${pb.map(p=>`<span>⚠ ${p}</span>`).join('')}</div></div>`;
+  h+=`<div class="nav"><button class="btn ghost" data-act="prev" ${st.ci===0?'disabled':''}>← 上一班</button>${st.ci<cls.length-1?`<button class="btn" data-act="next">下一班 →</button>`:`<button class="btn" data-act="go" data-v="summary">檢查總覽 →</button>`}</div>
+  <button class="btn ghost" data-act="go" data-v="summary">檢查總覽</button>
+  ${r.notes?notesBox(false,r.notes):''}`;
+  return h;
+}
+
+function summary(){
+  const r=R();const cls=classes();
+  let h=hdr('檢查總覽',`${r.n}・第 ${st.week} 週・${st.date}・${esc(nameOf())}`,'score');
+  slotsNow().forEach(slot=>{
+    const cs=SLOTS[slot].c;
+    h+=`<h2 style="font-size:1.1rem">${SLOTS[slot].n}</h2><div class="tblwrap"><table><thead><tr><th style="text-align:left">班級</th>${cs.map(k=>`<th>${k} ${crit(k).n}</th>`).join('')}${r.pc?'<th style="text-align:left">優點</th><th style="text-align:left">缺點</th>':''}<th>狀態</th></tr></thead><tbody>`;
+    cls.forEach((c,i)=>{const rc=peek(c,slot);const pb=problems(c,slot);
+      h+=`<tr><td class="cl"><button class="chip" data-act="jump" data-v="${i}" data-slot="${slot}">${c}</button></td>${cs.map(k=>`<td>${rc?.s[k]?`<span class="sc l${rc.s[k]}">${rc.s[k]}</span>`:'—'}</td>`).join('')}
+      ${r.pc?`<td class="txt">${rc?esc(rc.pro.join('、')):''}</td><td class="txt">${rc?esc([...rc.con,rc.other].filter(Boolean).join('、')):''}${rc?.self?'<br><small>（經導師同意午休自習）</small>':''}</td>`:''}
+      <td>${pb.length?`<span class="miss">${pb[0]}</span>`:'✓'}</td></tr>`});
+    h+='</tbody></table></div>';
+  });
+  h+=`<p class="fine">點班級號碼可以回去修改。這份評分會先存在這台載具，之後連上網路時再上傳（上傳功能下一階段製作）。</p>
+  <button class="btn" data-act="go" data-v="home">完成，回首頁</button>`;
+  return h;
+}
+
+function render(){
+  const s=st.screen;const el=document.getElementById('app');
+  el.innerHTML=s==='home'?home():s==='roles'?roles():s==='clean'?cleanRoles():s==='cleanVol'?cleanVol():s==='cleanOut'?placeholder('外掃評分','cleanVol','整潔評分・小義工（早上）'):s==='cleanIn'?placeholder('內掃評分','cleanVol','整潔評分・小義工（早上）'):s==='cleanMon'?placeholder('衛生股長（午休）整潔評分','clean','整潔評分'):s==='upload'?uploadScreen():s==='dutyScore'?dutyScore():s==='dutySummary'?dutySummary():s==='setup'?setup():s==='score'?score():summary();
+}
+function refreshWarn(){const cl=classes()[st.ci];const w=document.getElementById('warn');if(!w)return;const pb=problems(cl,st.slot);w.innerHTML=pb.map(p=>`<span>⚠ ${p}</span>`).join('')}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
+  const a=b.dataset.act,v=b.dataset.v;let scrollTop=false;
+  if(a==='upload'){doUpload();return}
+  if(a==='go'){st.screen=v;if(v==='upload')upState.msg='';scrollTop=true}
+  else if(a==='role'){st.role=v;st.screen='setup';scrollTop=true}
+  else if(a==='wk'){st.week=Math.max(1,st.week+ +v)}
+  else if(a==='grade'){st.grade=+v;save()}
+  else if(a==='assy'){st.assy=v==='1'}
+  else if(a==='today'){st.date=iso(new Date());st.week=weekOf(st.date)}
+  else if(a==='start'&&st.role==='duty'){st.slot='dam';st.ci=0;st.screen='dutyScore';save();scrollTop=true}
+  else if(a==='start'){st.slot=slotsNow()[0];st.ci=0;st.screen='score';save();scrollTop=true}
+  else if(a==='slot'){st.slot=v}
+  else if(a==='ci'){st.ci=+v}
+  else if(a==='jump'){st.ci=+v;st.slot=b.dataset.slot;st.screen=st.role==='duty'?'dutyScore':'score';scrollTop=true}
+  else if(a==='prev'){st.ci--;scrollTop=true}
+  else if(a==='next'){st.ci++;scrollTop=true}
+  else{
+    const cl=classes()[st.ci];const r=rec(cl,st.slot);
+    if(a==='dset'){const k=b.dataset.k,n=+v;if(r.s[k]===n)delete r.s[k];else r.s[k]=n}
+    else if(a==='set'){
+      const k=b.dataset.k,n=+v,c=crit(k);
+      r.con=r.con.filter(t=>t!==c[2]&&t!==c[1]);
+      if(r.s[k]===n){delete r.s[k]}else{r.s[k]=n;if(n<3&&R().pc)r.con.push(c[n])}
+    }
+    else if(a==='pro'){r.pro=r.pro.includes(v)?r.pro.filter(t=>t!==v):[...r.pro,v]}
+    else if(a==='con'){r.con=r.con.includes(v)?r.con.filter(t=>t!==v):[...r.con,v]}
+    else if(a==='self'){r.self=!r.self}
+    r.u=Date.now();
+    save();
+  }
+  render();if(scrollTop)window.scrollTo(0,0);
+});
+document.addEventListener('input',e=>{
+  const f=e.target.dataset.in;if(!f)return;
+  if(f==='name'){setName(e.target.value);const sb=document.getElementById('startBtn');if(sb)sb.disabled=!nameOf().trim()}
+  else if(f==='date'){if(e.target.value){st.date=e.target.value;st.week=weekOf(st.date);render()}}
+  else if(f==='dnote'){const r=rec(classes()[st.ci],st.slot);r.note=e.target.value;r.u=Date.now();save()}
+  else if(f==='other'){const r=rec(classes()[st.ci],st.slot);r.other=e.target.value;r.u=Date.now();save();refreshWarn()}
+  else if(f==='urlOrder'||f==='urlClean'){P[f]=e.target.value.trim();save()}
+});
+/* 自動換日：不論 App 有沒有關，切回畫面或過了午夜都會改成當天日期 */
+let lastDay=iso(new Date());let toastT;
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4000)}
+function checkDate(){
+  const now=iso(new Date());if(now===lastDay)return;
+  lastDay=now;
+  if(st.date!==now){st.date=now;st.week=weekOf(now);st.assy=false;if(st.screen==='score'&&!slotsNow().includes(st.slot))st.slot=slotsNow()[0];const d=new Date(now+'T00:00');render();toast(`日期已自動更新為 ${d.getMonth()+1}/${d.getDate()} 星期${WD[d.getDay()]}`)}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDate()});
+window.addEventListener('focus',checkDate);
+window.addEventListener('pageshow',checkDate);
+setInterval(checkDate,30000);
+render();
+</script>
+
+<script>
+/* 離線使用：註冊 service worker，並請瀏覽器不要自動清除這個 App 的資料 */
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().catch(()=>{})}
+</script></body>
+</html>
